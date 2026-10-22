@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shorts At</title>
+<style>
+:root{
+  --bg:#14111d; --glow:#2a1740; --fg:#f6f1ff; --muted:#a89fc0;
+  --accent:#ff5a76; --accent2:#ffb347;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg); color:var(--fg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:env(safe-area-inset-top,0px) max(16px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(16px,env(safe-area-inset-left,0px));
+  overflow-x:hidden;
+}
+#tap{
+  height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;
+  cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;outline:none;
+  background:radial-gradient(ellipse at 50% 40%,var(--glow),transparent 65%);
+}
+#tap:focus-visible{outline:3px solid var(--accent2);outline-offset:-6px}
+.brand{font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-size:1.05rem}
+.disc{width:min(64vw,280px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;position:relative;
+  background:conic-gradient(from 210deg,var(--accent),var(--accent2),var(--accent));
+  box-shadow:0 0 0 10px rgba(255,90,118,.12),0 20px 60px rgba(255,90,118,.35);
+  animation:breathe 2.8s ease-in-out infinite;transition:transform .15s}
+.disc::before{content:"";position:absolute;inset:14px;border-radius:50%;background:var(--bg)}
+.disc span{position:relative;font-weight:800;font-size:clamp(2rem,11vw,3rem);text-align:center}
+#tap:active .disc{transform:scale(.94)}
+.hint{margin:0;text-align:center;color:var(--muted);font-size:1.05rem;max-width:28ch}
+.count{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;min-height:1.2em}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@media (prefers-reduced-motion:reduce){.disc{animation:none}}
+
+#gear{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);right:max(14px,env(safe-area-inset-right,0px));width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:var(--fg);font-size:1.4rem;cursor:pointer;z-index:5;-webkit-tap-highlight-color:transparent}
+#gear:focus-visible,.chip:focus-visible,#panel button:focus-visible{outline:3px solid var(--accent2)}
+#panel{width:calc(100% - 32px);max-width:420px;max-height:85vh;overflow:auto;border:0;border-radius:20px;padding:20px;background:#1d1830;color:var(--fg)}
+#panel::backdrop{background:rgba(0,0,0,.6)}
+#panel h2{margin:0 0 14px;font-size:1.2rem}
+#panel label,.lbl{display:block;margin:16px 0 6px;font-size:.85rem;font-weight:700;color:var(--muted)}
+#panel input,#panel select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #3a3256;background:var(--bg);color:var(--fg);font-size:1rem}
+.note{font-size:.8rem;color:var(--muted);margin:6px 0 0}
+#chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:7px 12px;border-radius:999px;border:1px solid #3a3256;background:transparent;color:var(--muted);font-size:.85rem;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.row{display:flex;gap:8px;margin-top:8px}
+#panel .btn{flex:1;padding:11px;border-radius:10px;border:0;background:rgba(255,255,255,.1);color:var(--fg);font-size:.95rem;cursor:pointer}
+#panel .btn.main{background:var(--accent);font-weight:700}
+#panel .btn.warn{color:#ff8a9c}
+</style>
+</head>
+<body>
+<div id="tap" role="button" tabindex="0" aria-label="Rastgele Shorts aç">
+  <div class="brand">Shorts At</div>
+  <div class="disc"><span>DOKUN</span></div>
+  <p class="hint">Ekrana dokun, rastgele bir Shorts'a atla</p>
+  <div class="count" id="count"></div>
+</div>
+
+<button id="gear" type="button" aria-label="Ayarlar">⚙</button>
+<dialog id="panel" aria-label="Ayarlar">
+  <h2>Ayarlar</h2>
+  <label for="key">YouTube API anahtarı</label>
+  <input id="key" type="password" autocomplete="off" placeholder="Boş bırakılırsa doğrudan Shorts akışı">
+  <p class="note" id="mode"></p>
+  <label for="maxsec">En uzun video süresi</label>
+  <select id="maxsec"><option value="60">60 saniye</option><option value="120">120 saniye</option><option value="180">180 saniye</option></select>
+  <label for="year">En eski tarih (yıl)</label>
+  <select id="year"></select>
+  <span class="lbl">Konular</span>
+  <div id="chips"></div>
+  <div class="row"><button class="btn" id="all" type="button">Hepsi</button><button class="btn" id="none" type="button">Temizle</button></div>
+  <p class="note">Hiç konu seçili değilse hepsi kullanılır. Konu, süre ve yıl yalnızca API anahtarı varken işe yarar.</p>
+  <div class="row" style="margin-top:20px"><button class="btn warn" id="reset" type="button">Geçmişi sıfırla</button><button class="btn main" id="close" type="button">Kapat</button></div>
+</dialog>
+<script>
+(function () {
+  // İsteğe bağlı: YouTube Data API v3 anahtarını buraya yapıştırırsan her dokunuş
+  // rastgele konu + rastgele tarihten seçilmiş tek bir videoya gider.
+  // Boş bırakırsan (varsayılan) doğrudan YouTube'un Shorts akışı açılır; arama sayfası yok.
+  var API_KEY = "";
+
+  var FEED_URL = "https://www.youtube.com/shorts";
+  var TOPICS = ["komik","kedi","köpek","yemek","tarif","futbol","basketbol","oyun","minecraft","müzik","gitar","piyano","dans","araba","motor","drift","doğa","hayvan","deney","bilim","uzay","teknoloji","android","robot","sihir","şaka","stand up","spor","fitness","seyahat","istanbul","kapadokya","el işi","çizim","satisfying","lego","tarih","motivasyon","ilginç","yapay zeka","drone","manzara","bebek","street food","kahve","pasta","parkour","skate","boks"];
+  var MIN_QUEUE = 5, ALL_TOPICS = TOPICS.slice();
+
+  var tap = document.getElementById("tap"), countEl = document.getElementById("count");
+  var queue = loadJSON("shortsAtQueue", []);
+  var seen = loadJSON("shortsAtSeen", {});
+  var count = parseInt(load("shortsAtCount", "0"), 10) || 0;
+  var S = loadJSON("shortsAtSettings", {});
+  if (typeof S.key === "string" && S.key) API_KEY = S.key;
+  var MAX_SEC = S.maxSec || 180, FROM_YEAR = S.fromYear || 2021;
+  function $(id) { return document.getElementById(id); }
+  function activeTopics() {
+    var t = (S.topics || []).filter(function (x) { return ALL_TOPICS.indexOf(x) > -1; });
+    return t.length ? t : ALL_TOPICS;
+  }
+  var fetching = null, blockedUntil = 0;
+
+  function load(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function loadJSON(k, d) { try { return JSON.parse(load(k, "")) || d; } catch (e) { return d; } }
+  function persist() {
+    save("shortsAtQueue", JSON.stringify(queue));
+    var ids = Object.keys(seen);
+    if (ids.length > 3000) { seen = {}; ids.slice(-1500).forEach(function (i) { seen[i] = 1; }); }
+    save("shortsAtSeen", JSON.stringify(seen));
+  }
+  function renderCount() { countEl.textContent = count ? count + " atlayış" : ""; }
+  function rand(n) { return Math.floor(Math.random() * n); }
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = rand(i + 1), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function secs(iso) {
+    var m = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(iso || "");
+    return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 9999;
+  }
+  function api(path, params) {
+    params.key = API_KEY;
+    var qs = Object.keys(params).map(function (k) { return k + "=" + encodeURIComponent(params[k]); }).join("&");
+    return fetch("https://www.googleapis.com/youtube/v3/" + path + "?" + qs).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok) { var e = new Error("api"); e.status = r.status; e.reason = j.error && j.error.errors && j.error.errors[0] && j.error.errors[0].reason; throw e; }
+        return j;
+      });
+    });
+  }
+
+  function refill() {
+    if (!API_KEY || Date.now() < blockedUntil) return Promise.resolve(0);
+    if (fetching) return fetching;
+    var to = Date.now() - 120 * 864e5, from = Math.min(Date.UTC(FROM_YEAR, 0, 1), to - 120 * 864e5);
+    var start = from + Math.random() * (to - from);
+    fetching = api("search", {
+      part: "snippet", type: "video", videoDuration: "short", maxResults: 50,
+      q: "#shorts " + (function (t) { return t[rand(t.length)]; })(activeTopics()),
+      publishedAfter: new Date(start).toISOString(), publishedBefore: new Date(start + 120 * 864e5).toISOString()
+    }).then(function (res) {
+      var ids = (res.items || []).map(function (i) { return i.id && i.id.videoId; }).filter(function (id) { return id && !seen[id]; });
+      if (!ids.length) return 0;
+      return api("videos", { part: "contentDetails", id: ids.join(","), maxResults: 50 }).then(function (v) {
+        var good = (v.items || []).filter(function (i) { return secs(i.contentDetails.duration) <= MAX_SEC; }).map(function (i) { return i.id; });
+        good.forEach(function (id) { seen[id] = 1; });
+        queue = queue.concat(shuffle(good));
+        persist();
+        return good.length;
+      });
+    }).then(function (n) { fetching = null; return n; })
+      .catch(function (e) {
+        fetching = null;
+        blockedUntil = Date.now() + (e.reason === "quotaExceeded" ? 6 * 36e5 : 5 * 6e4);
+        return 0;
+      });
+    return fetching;
+  }
+
+  function open(url) { window.location.href = url; }
+  function openShort(id) { open("https://www.youtube.com/shorts/" + id); }
+
+  function go() {
+    count += 1; save("shortsAtCount", String(count)); renderCount();
+    if (queue.length) {
+      var id = queue.shift(); persist();
+      if (queue.length < MIN_QUEUE) refill();
+      openShort(id);
+      return;
+    }
+    if (!API_KEY) { open(FEED_URL); return; }
+    refill().then(function (n) {
+      if (n && queue.length) { var id = queue.shift(); persist(); openShort(id); }
+      else open(FEED_URL);
+    });
+  }
+
+  // Ayarlar menüsü
+  var dlg = $("panel"), keyIn = $("key"), maxSel = $("maxsec"), yearSel = $("year"), chipsEl = $("chips"), modeEl = $("mode");
+  function saveS() {
+    save("shortsAtSettings", JSON.stringify(S));
+    queue = []; blockedUntil = 0; persist();
+    if (API_KEY) refill();
+  }
+  function renderMode() {
+    modeEl.textContent = API_KEY ? "Rastgele konu ve tarih modu açık." : "Anahtar yok: dokununca doğrudan YouTube Shorts akışı açılır.";
+  }
+  function renderChips() {
+    var all = !(S.topics && S.topics.length), on = (S.topics || []).filter(function (x) { return ALL_TOPICS.indexOf(x) > -1; });
+    chipsEl.innerHTML = "";
+    ALL_TOPICS.forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = t;
+      b.setAttribute("aria-pressed", String(all || on.indexOf(t) > -1));
+      b.addEventListener("click", function () {
+        var cur = all ? ALL_TOPICS.slice() : on.slice(), i = cur.indexOf(t);
+        if (i > -1) cur.splice(i, 1); else cur.push(t);
+        S.topics = cur.length ? cur : ["__yok__"]; saveS(); renderChips();
+      });
+      chipsEl.appendChild(b);
+    });
+  }
+  for (var y = new Date().getFullYear(); y >= 2010; y--) { var o = document.createElement("option"); o.value = y; o.textContent = y; yearSel.appendChild(o); }
+  $("gear").addEventListener("click", function () {
+    open("https://m.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUIUmlja3JvbGw%3D");
+  });
+  function closeDlg() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); }
+  $("close").addEventListener("click", closeDlg);
+  dlg.addEventListener("click", function (e) { if (e.target === dlg) closeDlg(); });
+  keyIn.addEventListener("change", function () { API_KEY = S.key = keyIn.value.trim(); saveS(); renderMode(); });
+  maxSel.addEventListener("change", function () { MAX_SEC = S.maxSec = parseInt(maxSel.value, 10); saveS(); });
+  yearSel.addEventListener("change", function () { FROM_YEAR = S.fromYear = parseInt(yearSel.value, 10); saveS(); });
+  $("all").addEventListener("click", function () { S.topics = []; saveS(); renderChips(); });
+  $("none").addEventListener("click", function () { S.topics = ["__yok__"]; saveS(); renderChips(); });
+  $("reset").addEventListener("click", function () {
+    if (!confirm("Atlayış sayacı ve görülen videolar sıfırlansın mı?")) return;
+    queue = []; seen = {}; count = 0; persist(); save("shortsAtCount", "0"); renderCount();
+  });
+
+  tap.addEventListener("click", go);
+  tap.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  renderCount();
+  if (queue.length < MIN_QUEUE) refill();
+})();
+</script>
+</body>
+</html>
